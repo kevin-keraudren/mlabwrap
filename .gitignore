@@ -6,3 +6,6 @@ build/
 .ropeproject/
 */.ropeproject/
 *.swp
+.idea/
+*.so
+*egg-info/
