@@ -7,13 +7,16 @@ I liked the look of the Python 3 support - though this is currently untested - w
 to fork from this project. Unfortunately, my Anaconda environment does not seem to like building
 using Microsoft Visual Studio.
 
+## Platform
+
+One of the major reasons for using this fork was also because it claimed to allow building on
+Windows. However, I haven't gotten it to work. I've maintained the logic that was apparent
+in the fork so that, hopefully, it should be possible to make small changes to ``setup.py``
+to allow installation on Windows.
+
 [This site](http://obasic.net/how-to-install-mlabwrap-on-windows) has an ongoing discussion about
 installing mlabwrap on Windows, though I've yet to get it to work. I'll happily discuss and fix
 this fork as appropriate if anyone comes up with any ideas.
-
-## Platform
-
-One of the major 
 
 ## Installation
 
