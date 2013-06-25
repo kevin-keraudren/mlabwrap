@@ -37,7 +37,32 @@ To install using ``setup.py`` (with optional parameter ``--matlab-root``):
 python setup.py install --matlab-root=PATH_TO_MATLAB_ROOT
 ```
 
+## Usage
+To import mlabwrap we do the following **(note the explict call to ``init``)**:
+```
+from mlabwrap import mlab
+mlab.init()
+import numpy as np
+```
+
+Then we can call a function as follows:
+```
+mlab.svd(np.array([[1,2], [1,3]]))
+```
+
+If we want to pass in an explicit version of Matlab, we simply specify the root directory:
+```
+from mlabwrap import mlab
+mlab.init(matlab_root='/usr/local/MATLAB/R2013a')
+```
+
 ## Changelog
+
+### 1.1.5 (2013-06-25)
+ * Change the interface to mlabwrap such that you must explicitly call the init function. 
+   This allows you to pass in the matlab version you want more easily. 
+   This is achieved by way of the ``matlab_root`` keyword arg that can be passed in to the ``init`` function. 
+   This function is simply the old constructor.
 
 ### 1.1.4 (2013-06-25)
 
