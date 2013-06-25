@@ -169,30 +169,27 @@ See the docu of ``MlabWrap`` and ``MatlabObjectProxy`` for more information.
 
 __docformat__ = "restructuredtext en"
 __author__ = "Alexander Schmolck <a.schmolck@gmx.net>"
+
 import warnings
-from pickle import PickleError
-import operator
-import os, sys, re
+import os
+import sys
+import re
 import weakref
 import atexit
+from matlab_utils import find_matlab_root
 
-try:
-    import numpy
+import numpy
+ndarray = numpy.ndarray
 
-    ndarray = numpy.ndarray
-except ImportError:
-    import Numeric
-
-    ndarray = Numeric.ArrayType
-
-from tempfile import gettempdir
 import mlabraw
+
 
 #XXX: nested access
 def _flush_write_stdout(s):
     """Writes `s` to stdout and flushes. Default value for ``handle_out``."""
-    sys.stdout.write(s);
+    sys.stdout.write(s)
     sys.stdout.flush()
+
 
 # XXX I changed this to no longer use weakrefs because it didn't seem 100%
 # reliable on second thought; need to check if we need to do something to
@@ -380,30 +377,32 @@ class MlabWrap(object):
 
     __all__ = [] #XXX a hack, so that this class can fake a module; don't mutate
 
-    def __init__(self, use_jvm=False, use_display=False):
+    def init(self, matlab_root=find_matlab_root(), use_jvm=False,
+             use_display=False):
         """Create a new matlab(tm) wrapper object.
         """
         self._array_cast = None
-        """specifies a cast for arrays. If the result of an
-        operation is a numpy array, ``return_type(res)`` will be returned
-        instead."""
+        # Specifies a cast for arrays. If the result of an
+        # operation is a numpy array, ``return_type(res)`` will be returned
+        # instead.
         self._autosync_dirs = True
-        """`autosync_dirs` specifies whether the working directory of the
-        matlab session should be kept in sync with that of python."""
+        # autosync_dirs specifies whether the working directory of the
+        # matlab session should be kept in sync with that of python.
         self._flatten_row_vecs = False
-        """Automatically return 1xn matrices as flat numeric arrays."""
+        # Automatically return 1xn matrices as flat numeric arrays.
         self._flatten_col_vecs = False
-        """Automatically return nx1 matrices as flat numeric arrays."""
+        # Automatically return nx1 matrices as flat numeric arrays.
         self._clear_call_args = True
 
         self._closed = False
 
-        """Remove the function args from matlab workspace after each function
-        call. Otherwise they are left to be (partly) overwritten by the next
-        function call. This saves a function call in matlab but means that the
-        memory used up by the arguments will remain unreclaimed till
-        overwritten."""
-        cmd_str = 'matlab -nodesktop'
+        # Remove the function args from matlab workspace after each function
+        # call. Otherwise they are left to be (partly) overwritten by the next
+        # function call. This saves a function call in matlab but means that the
+        # memory used up by the arguments will remain unreclaimed till
+        # overwritten.
+        cmd_str = os.path.join(matlab_root, 'bin', 'matlab')
+        cmd_str += ' -nodesktop'
         if not use_jvm:
             cmd_str += ' -nojvm'
         if not use_display:
@@ -411,15 +410,15 @@ class MlabWrap(object):
         self._session = mlabraw.open(cmd_str)
         atexit.register(self.close)
         self._proxies = weakref.WeakValueDictionary()
-        """Use ``mlab._proxies.values()`` for a list of matlab object's that
-        are currently proxied."""
+        # Use ``mlab._proxies.values()`` for a list of matlab object's that
+        # are currently proxied.
         self._proxy_count = 0
         self._mlabraw_can_convert = ('double', 'char')
-        """The matlab(tm) types that mlabraw will automatically convert for us."""
+        # The matlab(tm) types that mlabraw will automatically convert for us.
         self._dont_proxy = {'cell': False}
-        """The matlab(tm) types we can handle ourselves with a bit of
-           effort. To turn on autoconversion for e.g. cell arrays do:
-           ``mlab._dont_proxy["cell"] = True``."""
+        # The matlab(tm) types we can handle ourselves with a bit of
+        # effort. To turn on autoconversion for e.g. cell arrays do:
+        #   >>> mlab._dont_proxy["cell"] = True
 
     def __del__(self):
         self.close()
@@ -430,7 +429,6 @@ class MlabWrap(object):
             mlabraw.close(self._session)
 
     def _format_struct(self, varname):
-        res = []
         fieldnames = self._do("fieldnames(%s)" % varname)
         size = numpy.ravel(self._do("size(%s)" % varname))
         return "%dx%d struct array with fields:\n%s" % (
@@ -449,8 +447,8 @@ class MlabWrap(object):
                      "TMP_CLS__ = [TMP_CLS__,'-sparse']; end;" % dict(
                          x=varname))
         res_type = mlabraw.get(self._session, "TMP_CLS__")
-        mlabraw.eval(self._session,
-                     "clear TMP_CLS__;") # unlikely to need try/finally to ensure clear
+        mlabraw.eval(self._session, "clear TMP_CLS__;")
+        # unlikely to need try/finally to ensure clear
         return res_type
 
     def _make_proxy(self, varname, parent=None, constructor=MlabObjectProxy):
@@ -545,11 +543,11 @@ class MlabWrap(object):
                     argnames.append(nextName)
                     tempargs.append(nextName)
                     # have to convert these by hand
-                    ##                 try:
-                    ##                     arg = self._as_mlabable_type(arg)
-                    ##                 except TypeError:
-                    ##                     raise TypeError("Illegal argument type (%s.:) for %d. argument" %
-                    ##                                     (type(arg), type(count)))
+                    ## try:
+                    ##     arg = self._as_mlabable_type(arg)
+                    ## except TypeError:
+                    ##     raise TypeError("Illegal argument type (%s.:) for %d. argument" %
+                    ##                     (type(arg), type(count)))
                     mlabraw.put(self._session, argnames[-1], arg)
 
             if args:
