@@ -168,18 +168,21 @@ See the docu of ``MlabWrap`` and ``MatlabObjectProxy`` for more information.
 """
 
 __docformat__ = "restructuredtext en"
-__author__   = "Alexander Schmolck <a.schmolck@gmx.net>"
+__author__ = "Alexander Schmolck <a.schmolck@gmx.net>"
 import warnings
 from pickle import PickleError
 import operator
 import os, sys, re
 import weakref
 import atexit
+
 try:
     import numpy
+
     ndarray = numpy.ndarray
 except ImportError:
     import Numeric
+
     ndarray = Numeric.ArrayType
 
 from tempfile import gettempdir
@@ -188,19 +191,24 @@ import mlabraw
 #XXX: nested access
 def _flush_write_stdout(s):
     """Writes `s` to stdout and flushes. Default value for ``handle_out``."""
-    sys.stdout.write(s); sys.stdout.flush()
+    sys.stdout.write(s);
+    sys.stdout.flush()
 
 # XXX I changed this to no longer use weakrefs because it didn't seem 100%
 # reliable on second thought; need to check if we need to do something to
 # speed up proxy reclamation on the matlab side.
 class CurlyIndexer(object):
     """A helper class to mimick ``foo{bar}``-style indexing in python."""
+
     def __init__(self, proxy):
         self.proxy = proxy
+
     def __getitem__(self, index):
         return self.proxy.__getitem__(index, '{}')
+
     def __setitem__(self, index, value):
         self.proxy.__setitem__(index, value, '{}')
+
 
 class MlabObjectProxy(object):
     """A proxy class for matlab objects that can't be converted to python
@@ -227,6 +235,7 @@ class MlabObjectProxy(object):
 
 
        """
+
     def __init__(self, mlabwrap, name, parent=None):
         self.__dict__['_mlabwrap'] = mlabwrap
         self.__dict__['_name'] = name
@@ -239,56 +248,74 @@ class MlabObjectProxy(object):
         mlab._do('disp(%s)' % self._name, nout=0, handle_out=output.append)
         rep = "".join(output)
         klass = self._mlabwrap._do("class(%s)" % self._name)
-##         #XXX what about classes?
-##         if klass == "struct":
-##             rep = "\n" + self._mlabwrap._format_struct(self._name)
-##         else:
-##             rep = ""
+        ##         #XXX what about classes?
+        ##         if klass == "struct":
+        ##             rep = "\n" + self._mlabwrap._format_struct(self._name)
+        ##         else:
+        ##             rep = ""
         return "<%s of matlab-class: %r; internal name: %r; has parent: %s>\n%s" % (
             type(self).__name__, klass,
             self._name, ['yes', 'no'][self._parent is None],
             rep)
+
     def __del__(self):
         if self._parent is None:
             mlabraw.eval(self._mlabwrap._session, 'clear %s;' % self._name)
+
     def _get_part(self, to_get):
-        if self._mlabwrap._var_type(to_get) in self._mlabwrap._mlabraw_can_convert:
+        if self._mlabwrap._var_type(
+                to_get) in self._mlabwrap._mlabraw_can_convert:
             #!!! need assignment to TMP_VAL__ because `mlabraw.get` only works
             # with 'atomic' values like ``foo`` and not e.g. ``foo.bar``.
             mlabraw.eval(self._mlabwrap._session, "TMP_VAL__=%s" % to_get)
             return self._mlabwrap._get('TMP_VAL__', remove=True)
         return type(self)(self._mlabwrap, to_get, self)
+
     def _set_part(self, to_set, value):
         #FIXME s.a.
         if isinstance(value, MlabObjectProxy):
-            mlabraw.eval(self._mlabwrap._session, "%s = %s;" % (to_set, value._name))
+            mlabraw.eval(self._mlabwrap._session,
+                         "%s = %s;" % (to_set, value._name))
         else:
             self._mlabwrap._set("TMP_VAL__", value)
             mlabraw.eval(self._mlabwrap._session, "%s = TMP_VAL__;" % to_set)
             mlabraw.eval(self._mlabwrap._session, 'clear TMP_VAL__;')
+
 
     def __getattr__(self, attr):
         if attr == "_":
             return self.__dict__.setdefault('_', CurlyIndexer(self))
         else:
             return self._get_part("%s.%s" % (self._name, attr))
+
     def __setattr__(self, attr, value):
         self._set_part("%s.%s" % (self._name, attr), value)
-    # FIXME still have to think properly about how to best translate Matlab semantics here...
+
+        # FIXME still have to think properly about how to best translate Matlab semantics here...
+
     def __nonzero__(self):
-        raise TypeError("%s does not yet implement truth testing" % type(self).__name__)
+        raise TypeError(
+            "%s does not yet implement truth testing" % type(self).__name__)
+
     def __len__(self):
-        raise TypeError("%s does not yet implement __len__" % type(self).__name__)
+        raise TypeError(
+            "%s does not yet implement __len__" % type(self).__name__)
+
     def __iter__(self):
-        raise TypeError("%s does not yet implement iteration" % type(self).__name__)
+        raise TypeError(
+            "%s does not yet implement iteration" % type(self).__name__)
+
     def _matlab_str_repr(s):
         if '\n' not in s:
-            return "'%s'" % s.replace("'","''")
+            return "'%s'" % s.replace("'", "''")
         else:
             # Matlab's string literals suck. They can't represent all
             # strings, so we need to use sprintf
-            return "sprintf('%s')" % escape(s).replace("'","''").replace("%", "%%")
+            return "sprintf('%s')" % escape(s).replace("'", "''").replace("%",
+                                                                          "%%")
+
     _matlab_str_repr = staticmethod(_matlab_str_repr)
+
     #FIXME: those two only work ok for 1D indexing
     def _convert_index(self, index):
         if isinstance(index, int):
@@ -296,39 +323,51 @@ class MlabObjectProxy(object):
         elif isinstance(index, basestring):
             return self._matlab_str_repr(index)
         elif isinstance(index, slice):
-            if index == slice(None,None,None):
+            if index == slice(None, None, None):
                 return ":"
-            elif index.step not in (None,1):
+            elif index.step not in (None, 1):
                 raise ValueError("Illegal index for a proxy %r" % index)
             else:
                 start = (index.start or 0) + 1
-                if start == 0: start_s = 'end'
-                elif start < 0: start_s = 'end%d' % start
-                else: start_s = '%d' % start
+                if start == 0:
+                    start_s = 'end'
+                elif start < 0:
+                    start_s = 'end%d' % start
+                else:
+                    start_s = '%d' % start
 
-                if index.stop is None: stop_s = 'end'
-                elif index.stop < 0: stop_s = 'end%d' % index.stop
-                else: stop_s = '%d' % index.stop
+                if index.stop is None:
+                    stop_s = 'end'
+                elif index.stop < 0:
+                    stop_s = 'end%d' % index.stop
+                else:
+                    stop_s = '%d' % index.stop
 
                 return '%s:%s' % (start_s, stop_s)
         else:
             raise TypeError("Unsupported index type: %r." % type(index))
+
     def __getitem__(self, index, parens='()'):
         """WARNING: Semi-finished, semantics might change because it's not yet
            clear how to best bridge the matlab/python impedence match.
            HACK: Matlab decadently allows overloading *2* different indexing parens,
            ``()`` and ``{}``, hence the ``parens`` option."""
         index = self._convert_index(index)
-        return self._get_part("".join([self._name,parens[0],index,parens[1]]))
+        return self._get_part(
+            "".join([self._name, parens[0], index, parens[1]]))
+
     def __setitem__(self, index, value, parens='()'):
         """WARNING: see ``__getitem__``."""
         index = self._convert_index(index)
-        return self._set_part("".join([self._name,parens[0],index,parens[1]]),
-                                      value)
+        return self._set_part(
+            "".join([self._name, parens[0], index, parens[1]]),
+            value)
+
 
 class MlabConversionError(Exception):
     """Raised when a mlab type can't be converted to a python primitive."""
     pass
+
 
 class MlabWrap(object):
     """This class does most of the wrapping work. It manages a single matlab
@@ -344,11 +383,11 @@ class MlabWrap(object):
     def __init__(self, use_jvm=False, use_display=False):
         """Create a new matlab(tm) wrapper object.
         """
-        self._array_cast  = None
+        self._array_cast = None
         """specifies a cast for arrays. If the result of an
         operation is a numpy array, ``return_type(res)`` will be returned
         instead."""
-        self._autosync_dirs=True
+        self._autosync_dirs = True
         """`autosync_dirs` specifies whether the working directory of the
         matlab session should be kept in sync with that of python."""
         self._flatten_row_vecs = False
@@ -377,7 +416,7 @@ class MlabWrap(object):
         self._proxy_count = 0
         self._mlabraw_can_convert = ('double', 'char')
         """The matlab(tm) types that mlabraw will automatically convert for us."""
-        self._dont_proxy = {'cell' : False}
+        self._dont_proxy = {'cell': False}
         """The matlab(tm) types we can handle ourselves with a bit of
            effort. To turn on autoconversion for e.g. cell arrays do:
            ``mlab._dont_proxy["cell"] = True``."""
@@ -393,22 +432,25 @@ class MlabWrap(object):
     def _format_struct(self, varname):
         res = []
         fieldnames = self._do("fieldnames(%s)" % varname)
-        size       = numpy.ravel(self._do("size(%s)" % varname))
+        size = numpy.ravel(self._do("size(%s)" % varname))
         return "%dx%d struct array with fields:\n%s" % (
             size[0], size[1], "\n   ".join([""] + fieldnames))
-##         fieldnames
-##         fieldvalues = self._do(",".join(["%s.%s" % (varname, fn)
-##                                          for fn in fieldnames]), nout=len(fieldnames))
-##         maxlen = max(map(len, fieldnames))
-##         return "\n".join(["%*s: %s" % (maxlen, (`fv`,`fv`[:20] + '...')[len(`fv`) > 23])
-##                                        for fv in fieldvalues])
+
+    ##         fieldnames
+    ##         fieldvalues = self._do(",".join(["%s.%s" % (varname, fn)
+    ##                                          for fn in fieldnames]), nout=len(fieldnames))
+    ##         maxlen = max(map(len, fieldnames))
+    ##         return "\n".join(["%*s: %s" % (maxlen, (`fv`,`fv`[:20] + '...')[len(`fv`) > 23])
+    ##                                        for fv in fieldvalues])
 
     def _var_type(self, varname):
         mlabraw.eval(self._session,
                      "TMP_CLS__ = class(%(x)s); if issparse(%(x)s),"
-                     "TMP_CLS__ = [TMP_CLS__,'-sparse']; end;" % dict(x=varname))
+                     "TMP_CLS__ = [TMP_CLS__,'-sparse']; end;" % dict(
+                         x=varname))
         res_type = mlabraw.get(self._session, "TMP_CLS__")
-        mlabraw.eval(self._session, "clear TMP_CLS__;") # unlikely to need try/finally to ensure clear
+        mlabraw.eval(self._session,
+                     "clear TMP_CLS__;") # unlikely to need try/finally to ensure clear
         return res_type
 
     def _make_proxy(self, varname, parent=None, constructor=MlabObjectProxy):
@@ -426,36 +468,38 @@ class MlabWrap(object):
     def _get_cell(self, varname):
         # XXX can currently only handle ``{}`` and 1D cells
         mlabraw.eval(self._session,
-                   "TMP_SIZE_INFO__ = \
-                   [all(size(%(vn)s) == 0), \
-                    min(size(%(vn)s)) == 1 & ndims(%(vn)s) == 2, \
-                    max(size(%(vn)s))];" % {'vn':varname})
+                     "TMP_SIZE_INFO__ = \
+                     [all(size(%(vn)s) == 0), \
+                      min(size(%(vn)s)) == 1 & ndims(%(vn)s) == 2, \
+                      max(size(%(vn)s))];" % {'vn': varname})
         is_empty, is_rank1, cell_len = map(int,
-                                           self._get("TMP_SIZE_INFO__", remove=True).flat)
+                                           self._get("TMP_SIZE_INFO__",
+                                                     remove=True).flat)
         if is_empty:
             return []
         elif is_rank1:
-            cell_bits = (["TMP%i__" % (self.proxy_count+i)
-                           for i in range(cell_len)])
+            cell_bits = (["TMP%i__" % (self.proxy_count + i)
+                          for i in range(cell_len)])
             self._proxy_count += cell_len
             mlabraw.eval(self._session, '[%s] = deal(%s{:});' %
-                       (",".join(cell_bits), varname))
+                                        (",".join(cell_bits), varname))
             # !!! this recursive call means we have to take care with
             # overwriting temps!!!
             return self._get_values(cell_bits)
         else:
             raise MlabConversionError("Not a 1D cell array")
+
     def _manually_convert(self, varname, vartype):
         if vartype == 'cell':
             return self._get_cell(varname)
-
 
     def _get_values(self, varnames):
         if not varnames: raise ValueError("No varnames") #to prevent clear('')
         res = []
         for varname in varnames:
             res.append(self._get(varname))
-        mlabraw.eval(self._session, "clear('%s');" % "','".join(varnames)) #FIXME wrap try/finally?
+        mlabraw.eval(self._session, "clear('%s');" % "','".join(
+            varnames)) #FIXME wrap try/finally?
         return res
 
     def _do(self, cmd, *args, **kwargs):
@@ -486,8 +530,9 @@ class MlabWrap(object):
         #self._session = self._session or mlabraw.open()
         # HACK
         if self._autosync_dirs:
-            mlabraw.eval(self._session,  "cd('%s');" % os.getcwd().replace("'", "''"))
-        nout =  kwargs.get('nout', 1)
+            mlabraw.eval(self._session,
+                         "cd('%s');" % os.getcwd().replace("'", "''"))
+        nout = kwargs.get('nout', 1)
         #XXX what to do with matlab screen output
         argnames = []
         tempargs = []
@@ -500,28 +545,31 @@ class MlabWrap(object):
                     argnames.append(nextName)
                     tempargs.append(nextName)
                     # have to convert these by hand
-    ##                 try:
-    ##                     arg = self._as_mlabable_type(arg)
-    ##                 except TypeError:
-    ##                     raise TypeError("Illegal argument type (%s.:) for %d. argument" %
-    ##                                     (type(arg), type(count)))
-                    mlabraw.put(self._session,  argnames[-1], arg)
+                    ##                 try:
+                    ##                     arg = self._as_mlabable_type(arg)
+                    ##                 except TypeError:
+                    ##                     raise TypeError("Illegal argument type (%s.:) for %d. argument" %
+                    ##                                     (type(arg), type(count)))
+                    mlabraw.put(self._session, argnames[-1], arg)
 
             if args:
                 cmd = "%s(%s)%s" % (cmd, ", ".join(argnames),
-                                    ('',';')[kwargs.get('show',0)])
-            # got three cases for nout:
+                                    ('', ';')[kwargs.get('show', 0)])
+                # got three cases for nout:
             # 0 -> None, 1 -> val, >1 -> [val1, val2, ...]
             if nout == 0:
                 handle_out(mlabraw.eval(self._session, cmd))
                 return
-            # deal with matlab-style multiple value return
+                # deal with matlab-style multiple value return
             resSL = ((["RES%d__" % i for i in range(nout)]))
-            handle_out(mlabraw.eval(self._session, '[%s]=%s;' % (", ".join(resSL), cmd)))
+            handle_out(mlabraw.eval(self._session,
+                                    '[%s]=%s;' % (", ".join(resSL), cmd)))
             res = self._get_values(resSL)
 
-            if nout == 1: res = res[0]
-            else:         res = tuple(res)
+            if nout == 1:
+                res = res[0]
+            else:
+                res = tuple(res)
             if kwargs.has_key('cast'):
                 if nout == 0: raise TypeError("Can't cast: 0 nout")
                 return kwargs['cast'](res)
@@ -530,7 +578,8 @@ class MlabWrap(object):
         finally:
             if len(tempargs) and self._clear_call_args:
                 mlabraw.eval(self._session, "clear('%s');" %
-                             "','".join(tempargs))
+                                            "','".join(tempargs))
+
     # this is really raw, no conversion of [[]] -> [], whatever
     def _get(self, name, remove=False):
         r"""Directly access a variable in matlab space.
@@ -556,7 +605,8 @@ class MlabWrap(object):
                 # cell arrays), in that case just fall back on proxying.
                 try:
                     var = self._manually_convert(varname, vartype)
-                except MlabConversionError: pass
+                except MlabConversionError:
+                    pass
             if var is None:
                 # we can't convert this to a python object, so we just
                 # create a proxy, and don't delete the real matlab
@@ -573,7 +623,7 @@ class MlabWrap(object):
         if isinstance(value, MlabObjectProxy):
             mlabraw.eval(self._session, "%s = %s;" % (name, value._name))
         else:
-##             mlabraw.put(self._session, name, self._as_mlabable_type(value))
+        ##             mlabraw.put(self._session, name, self._as_mlabable_type(value))
             mlabraw.put(self._session, name, value)
 
     def _make_mlab_command(self, name, nout, doc=None):
@@ -581,6 +631,7 @@ class MlabWrap(object):
             if 'nout' not in kwargs:
                 kwargs['nout'] = nout
             return self._do(name, *args, **kwargs)
+
         mlab_command.__doc__ = "\n" + doc
         return mlab_command
 
@@ -595,13 +646,15 @@ class MlabWrap(object):
         if attr.startswith('__'): raise AttributeError(attr)
         assert not attr.startswith('_') # XXX
         # print_ -> print
-        if attr[-1] == "_": name = attr[:-1]
-        else             : name = attr
+        if attr[-1] == "_":
+            name = attr[:-1]
+        else:
+            name = attr
         try:
             nout = self._do("nargout('%s')" % name)
         except mlabraw.error as msg:
             typ = numpy.ravel(self._do("exist('%s')" % name))[0]
-            if   typ == 0: # doesn't exist
+            if typ == 0: # doesn't exist
                 raise AttributeError("No such matlab object: %s" % name)
             else:
                 warnings.warn(
