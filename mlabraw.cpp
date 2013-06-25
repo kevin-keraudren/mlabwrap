@@ -204,14 +204,6 @@ static PyObject *mx2char(const mxArray *pArray)
   }
   buflen = mxGetN(pArray) + 1;
 
-  //buf = (char *)mxCalloc(buflen, sizeof(char));
-  //pyassert(buf, "Out of MATLAB(TM) memory");
-  //if (mxGetString(pArray, buf, buflen)) {
-    //PyErr_SetString(mlabraw_error, "Unable to extract MATLAB(TM) string");
-    //mxFree(buf);
-    //return NULL;
-  //}
-
   buf = mxArrayToString(pArray);
   if (!buf) {
     PyErr_SetString(mlabraw_error, "Unable to extract MATLAB(TM) string");
@@ -222,11 +214,10 @@ static PyObject *mx2char(const mxArray *pArray)
 #ifdef PY3K
   lRetval = PyUnicode_DecodeFSDefault(buf);
 #else
-  lRetval = (PyStringObject *)PyString_FromString(buf);
+  lRetval = (PyObject *)PyString_FromString(buf);
 #endif
   mxFree(buf);
   return lRetval;
-	error_return: return NULL;
 }
 
 

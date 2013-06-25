@@ -2,40 +2,49 @@
 
 ## Acknowledgement
 
-This is a fork of <https://bitbucket.org/nikratio/mlabwrap> to fix some bugs.
+Building upon the work done by the chap that I forked this from, I have edited the mlabwrap project.
+I liked the look of the Python 3 support - though this is currently untested - which is why I chose
+to fork from this project. Unfortunately, my Anaconda environment does not seem to like building
+using Microsoft Visual Studio.
 
-I'm not familiar with hg. But I may checkout updates from <https://bitbucket.org/nikratio/mlabwrap>.
-
-Thanks [this site](http://obasic.net/how-to-install-mlabwrap-on-windows), I made it run on Windows.
+[This site](http://obasic.net/how-to-install-mlabwrap-on-windows) has an ongoing discussion about
+installing mlabwrap on Windows, though I've yet to get it to work. I'll happily discuss and fix
+this fork as appropriate if anyone comes up with any ideas.
 
 ## Platform
 
-The setup.py is configurated for Windows platform, with Python3 **32 bit** and Matlab **32 bit**.
+One of the major 
 
 ## Installation
 
-In VS2008 Command Prompt:
+**NOTE:** Matlab root refers to the main Matlab folder, e.g: ``/usr/local/MATLAB/R2013a/``
 
+To install using ``pip``:
 ```
-python setup.py bdist_egg --matlab=PATH_TO_YOUR_MATLAB_DOT_EXE
-easy_install dist\xxx.egg
+pip install git+https://github.com/patricksnape/mlabwrap.git
 ```
 
-## Changlog
+To manually set the Matlab root directory, use the following command:
+```
+pip install git+https://github.com/patricksnape/mlabwrap.git --install-option="--matlab-root=PATH_TO_MATLAB_ROOT"
+```
 
-### 1.1.3 (2012-11-21)
+To install using ``setup.py`` (with optional parameter ``--matlab-root``):
+```
+python setup.py install --matlab-root=PATH_TO_MATLAB_ROOT
+```
 
-* using system encoding scheme to decode string in `mlabraw.eval`
-* fix memory leak in `mlabraw.put` caused by chained `char2mx` and `PyUnicode_AsUTF8String`
+## Changelog
 
-### 1.1.2
+### 1.1.4 (2013-06-25)
 
-#### Cannot delete temporary file
+ * Rewrite ``setup.py`` so that it tries to guess where your Matlab folder is
+ * Make ``setup.py`` work with ``pip``
+ * Add flag ``--matlab-root`` to ``setup.py``
+ * Fix casting bug in ``mlabwrap.cpp``
+ * Remove the old code that tried to use the help command to guess the version as this doesn't work very well
 
-> [Error 32] The process cannot access the file because it is being used by another process:...
+### 1.1.3 (2012-11-21) - From Answeror's repository
 
-mentioned [here](http://obasic.net/how-to-install-mlabwrap-on-windows#comment-11549).
-
-#### Unable to extract MATLAB(TM) string
-
-When function documentation contains multibyte encoded characters, like Chinese, this error will occur. Because `mxGetString` don't support multibyte encoded characters. I use `mxArrayToString` instead.
+ * using system encoding scheme to decode string in `mlabraw.eval`
+ * fix memory leak in `mlabraw.put` caused by chained `char2mx` and `PyUnicode_AsUTF8String`

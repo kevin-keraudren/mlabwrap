@@ -168,7 +168,6 @@ See the docu of ``MlabWrap`` and ``MatlabObjectProxy`` for more information.
 """
 
 __docformat__ = "restructuredtext en"
-__version__ = '1.1'
 __author__   = "Alexander Schmolck <a.schmolck@gmx.net>"
 import warnings
 from pickle import PickleError
