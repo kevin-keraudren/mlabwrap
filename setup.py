@@ -65,10 +65,8 @@ def get_matlab_info(matlab_bin):
 
     version_str = version_str.split(' ')
     matlab_version = version_str[0]
-    # Parse version string into major/minor float
-    matlab_version = matlab_version.split('.')
-    matlab_version = float(
-        '{0}.{1}'.format(matlab_version[0], matlab_version[1]))
+    # Parse version string into [major,minor,patch,build] list of floats
+    matlab_version = [float(x) for x in matlab_version.split('.')]
     # Slice off brackets
     matlab_release = version_str[1][1:-1]
 
@@ -181,13 +179,15 @@ def main(args):
         EXTENSION_NAME = 'mlabrawmodule'
         PLATFORM_DIR = MATLAB_ARCH.lower()
         CPP_LIBRARIES = ['stdc++']
-
-        if MATLAB_VERSION >= 6.5:
+        
+        # Version >= 6.5
+        if MATLAB_VERSION[0] >= 6.0 and MATLAB_VERSION[1] >= 5.0:
             MATLAB_LIBRARIES = ['eng', 'mx', 'mat', 'ut']
         else:
             MATLAB_LIBRARIES = ['eng', 'mx', 'mat', 'mi', 'ut']
-
-        if MATLAB_VERSION >= 7:
+            
+        # Version >= 7.0
+        if MATLAB_VERSION[0] >= 7.0:
             MATLAB_LIBRARY_DIRS = [os.path.join(MATLAB_BIN, PLATFORM_DIR)]
         else:
             MATLAB_LIBRARY_DIRS = [
@@ -195,9 +195,11 @@ def main(args):
 
     # Version dependent defines    
     DEFINE_MACROS = []
+    # Version >= 6.5
     if MATLAB_VERSION >= 6.5:
         DEFINE_MACROS.append(('_V6_5_OR_LATER', 1))
-    if MATLAB_VERSION >= 7.3:
+    # Version >= 7.3
+    if MATLAB_VERSION[0] >= 7.0 and MATLAB_VERSION[1] >= 3.0:
         DEFINE_MACROS.append(('_V7_3_OR_LATER', 1))
 
     setup(
