@@ -44,7 +44,8 @@ def find_matlab_root():
     if isOSX():
         base_paths = ['/Applications/']
     elif isLinux():
-        base_paths = ['/usr/local/MATLAB/', '/usr/local/']
+        base_paths = ['/usr/lib/matlab/', '/usr/local/MATLAB/', 
+                      '/usr/local/']
     elif isWindows():
         base_paths = [os.environ["ProgramFiles"] + 'MATLAB',
                       os.environ["ProgramFiles(x86)"] + 'MATLAB',
@@ -83,3 +84,4 @@ def find_matlab_root():
             return versions[0]
 
     return None
+
