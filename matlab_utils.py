@@ -57,7 +57,7 @@ def find_matlab_root():
     # Check PATH first
     path_dir = check_PATH_for_folder('matlab')
     if path_dir:
-    # The PATH variable is normally the Matlab bin directory. However, multiple
+        # The PATH variable is normally the Matlab bin directory. However, multiple
         # Matlab environment variables may be set (e.g. on Windows). Therefore,
         # find the bin path and return the root directory
         try:
@@ -74,7 +74,7 @@ def find_matlab_root():
         # inside a directory called MATLAB, but instead just in the
         # default applications directly in a folder starting with matlab*
         # Therefore, let's make sure we've found a Matlab directory.
-        if not 'MATLAB' in base_path:
+        if not any(x in base_path for x in ['MATLAB', 'matlab']):
             versions = case_insensitive_glob(os.path.join(base_path, 'matlab*'))
         else:
             versions = glob(os.path.join(base_path, '*'))
