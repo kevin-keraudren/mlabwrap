@@ -204,7 +204,7 @@ def main(args):
 
     setup(
         name="mlabwrap",
-        version='1.1.5',
+        version='1.1.6',
         description="A high-level bridge to matlab",
         author="Alexander Schmolck",
         author_email="A.Schmolck@gmx.net",
