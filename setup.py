@@ -17,6 +17,9 @@ from matlab_utils import isWindows, find_matlab_root
 
 # GLOBAL VARIABLES
 
+VERSION_6_5 = [6.0, 5.0, 0.0, 0.0]
+VERSION_7_0 = [7.0, 0.0, 0.0, 0.0]
+VERSION_7_3 = [7.0, 3.0, 0.0, 0.0]
 VALID_ARCHS = ['GLNX86', 'GLNXI64', 'GLNXA64', 'PCWIN',
                'PCWIN64', 'MAC', 'MACI', 'MACI64']
 
@@ -181,13 +184,13 @@ def main(args):
         CPP_LIBRARIES = ['stdc++']
         
         # Version >= 6.5
-        if MATLAB_VERSION[0] >= 6.0 and MATLAB_VERSION[1] >= 5.0:
+        if cmp(MATLAB_VERSION, VERSION_6_5) >= 0:
             MATLAB_LIBRARIES = ['eng', 'mx', 'mat', 'ut']
         else:
             MATLAB_LIBRARIES = ['eng', 'mx', 'mat', 'mi', 'ut']
             
         # Version >= 7.0
-        if MATLAB_VERSION[0] >= 7.0:
+        if cmp(MATLAB_VERSION, VERSION_7_0) >= 0:
             MATLAB_LIBRARY_DIRS = [os.path.join(MATLAB_BIN, PLATFORM_DIR)]
         else:
             MATLAB_LIBRARY_DIRS = [
@@ -196,10 +199,10 @@ def main(args):
     # Version dependent defines    
     DEFINE_MACROS = []
     # Version >= 6.5
-    if MATLAB_VERSION >= 6.5:
+    if cmp(MATLAB_VERSION, VERSION_6_5) >= 0:
         DEFINE_MACROS.append(('_V6_5_OR_LATER', 1))
     # Version >= 7.3
-    if MATLAB_VERSION[0] >= 7.0 and MATLAB_VERSION[1] >= 3.0:
+    if cmp(MATLAB_VERSION, VERSION_7_3) >= 0:
         DEFINE_MACROS.append(('_V7_3_OR_LATER', 1))
 
     setup(
