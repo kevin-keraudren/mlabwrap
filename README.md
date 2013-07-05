@@ -58,6 +58,9 @@ mlab.init(matlab_root='/usr/local/MATLAB/R2013a')
 
 ## Changelog
 
+### 1.1.6 (2013-07-05)
+ * Fix ``setup.py`` so that it does correct comparisons for Matlab version numbers
+
 ### 1.1.5 (2013-06-25)
  * Change the interface to mlabwrap such that you must explicitly call the init function. 
    This allows you to pass in the matlab version you want more easily. 
