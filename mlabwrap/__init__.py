@@ -57,9 +57,17 @@ mlabwrap
 This module implements a powerful and simple to use wrapper that makes using
 matlab(tm) from python almost completely transparent. To use simply do:
 
->>> from mlabwrap import mlab
+>>> from mlabwrap import MlabInstance
+>>> mlab = MlabInstance.get_instance()
 
-and then just use whatever matlab command you like as follows:
+This ensures that only a single matlab(tm) instance is spun up during
+execution. In theory, if you wish to use multiple matlab(tm) instances,
+you can instantiate a new wrapper as follows:
+
+>>> mlab = MlabWrap()
+
+To call matlab(tm) functions, simply call them as normal on the mlab
+object:
 
 >>> mlab.plot(range(10), 'ro:')
 
@@ -68,11 +76,11 @@ You can do more than just plotting:
 >>> mlab.sort([3,1,2])
 array([[ 1.,  2.,  3.]])
 
-N.B.: The result here is a 1x3 matrix (and not a flat lenght 3 array) of type
+N.B.: The result here is a 1x3 matrix (and not a flat length 3 array) of type
 double (and not int), as matlab built around matrices of type double (see
 ``MlabWrap._flatten_row_vecs``).
 
-Matlab(tm)ab, unlike python has multiple value returns. To emulate calls like
+Matlab(tm), unlike python has multiple value returns. To emulate calls like
 ``[a,b] = sort([3,2,1])`` just do:
 
 >>> mlab.sort([3,1,2], nout=2)
@@ -82,7 +90,7 @@ For names that are reserved in python (like print) do:
 
 >>> mlab.print_()
 
-You can look at the documentation of a matlab function just by using help,
+You can look at the documentation of a matlab(tm) function just by using help,
 as usual:
 
 >>> help(mlab.sort)
@@ -140,20 +148,10 @@ Fine points and limitations
 
     mlab._autosync_dirs = False
 
-- you can customize how matlab is called by setting the environment variable
-  ``MLABRAW_CMD_STR`` (e.g. to add useful opitons like '-nojvm'). For the
-  rather convoluted semantics see
-  <http://www.mathworks.com/access/helpdesk/help/techdoc/apiref/engopen.html>.
-
-- if you don't want to use numpy arrays, but something else that's fine
-  too::
-
-    >>> import matrix from numpy.core.defmatrix
-    >>> mlab._array_cast = matrix
-    >>> mlab.sqrt([[4.], [1.], [0.]])
-    matrix([[ 2.],
-            [ 1.],
-            [ 0.]])
+- you can customize how matlab setting the appropriate keyword args on the
+  MatlabInstance call. For example:
+  >>> MlabInstance.get_instance(
+      matlab_root='/usr/local/MATLAB/R2013a', use_jvm=True, use_display=True)
 
 Credits
 -------
@@ -164,7 +162,7 @@ modified and bugfixed version of Andrew Sterian's pymat
 to him for releasing his package as open source.
 
 
-See the docu of ``MlabWrap`` and ``MatlabObjectProxy`` for more information.
+See the docs of ``MlabWrap`` and ``MatlabObjectProxy`` for more information.
 """
 
 __docformat__ = "restructuredtext en"
