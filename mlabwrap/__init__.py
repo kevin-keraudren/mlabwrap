@@ -422,7 +422,10 @@ class MlabWrap(object):
     def close(self):
         if not self._closed:
             self._closed = True
-            mlabraw.close(self._session)
+            try:
+                mlabraw.close(self._session)
+            except AssertionError:
+                pass
 
     def _format_struct(self, varname):
         fieldnames = self._do("fieldnames(%s)" % varname)
