@@ -13,7 +13,7 @@ import sys
 import subprocess
 import argparse
 import numpy as np
-from matlab_utils import isWindows, find_matlab_root
+from mlabwrap.matlab_utils import isWindows, find_matlab_root
 
 # GLOBAL VARIABLES
 
@@ -103,7 +103,7 @@ def get_extension(EXTENSION_NAME, DEFINE_MACROS, MATLAB_LIBRARY_DIRS,
     the runtime library directories get passed AT ALL to the build command
     then the binary fails to build on windows
     """
-    args = [EXTENSION_NAME, ['mlabraw.cpp']]
+    args = [EXTENSION_NAME, ['mlabwrap/mlabraw.cpp']]
     kwargs = {
         'define_macros': DEFINE_MACROS,
         'library_dirs': MATLAB_LIBRARY_DIRS,
@@ -207,12 +207,13 @@ def main(args):
 
     setup(
         name="mlabwrap",
-        version='1.1.6',
+        version='1.2',
         description="A high-level bridge to matlab",
         author="Alexander Schmolck",
         author_email="A.Schmolck@gmx.net",
-        py_modules=["mlabwrap"],
         url='http://mlabwrap.sourceforge.net',
+        packages=['mlabwrap'],
+        ext_package='mlabwrap',
         ext_modules=[
             get_extension(EXTENSION_NAME, DEFINE_MACROS, MATLAB_LIBRARY_DIRS,
                           MATLAB_LIBRARIES, CPP_LIBRARIES, MATLAB_INCLUDE_DIRS)
