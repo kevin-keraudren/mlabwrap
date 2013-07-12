@@ -164,7 +164,7 @@
 #define min(x,y) ((x) < (y) ? (x) : (y))
 #endif
 
-static inline mxArray* _getMatlabVar(PyObject *lHandle, char *lName){
+static inline mxArray* _getMatlabVar(PyObject *lHandle, const char *lName){
 #ifdef _V6_5_OR_LATER
   return engGetVariable((Engine *)PyCapsule_GetPointer(lHandle, NULL), lName);
 #else
@@ -195,14 +195,12 @@ static inline bool my_snprintf(char *dst, size_t size, const char *fmt, ...)
 // FIXME: add string array support
 static PyObject *mx2char(const mxArray *pArray)
 {
-  size_t buflen;
   char *buf;
   PyObject *lRetval;
   if (mxGetM(pArray) > 1) {
     PyErr_SetString(mlabraw_error, "Only 1 Dimensional strings are currently supported");
     return NULL;
   }
-  buflen = mxGetN(pArray) + 1;
 
   buf = mxArrayToString(pArray);
   if (!buf) {
@@ -257,7 +255,7 @@ static PyArrayObject *mx2numeric(const mxArray *pArray)
     // AWMS unsigned int almost certainly can overflow on some platforms!
     npy_intp numberOfElements = PyArray_SIZE(t);
     lPI = mxGetPi(pArray);
-    for (mwIndex i = 0; i != numberOfElements; i++) {
+    for (unsigned int i = 0; i != numberOfElements; i++) {
       *lDst++ = *lPR++;
       *lDst++ = *lPI++;
     }
@@ -265,7 +263,7 @@ static PyArrayObject *mx2numeric(const mxArray *pArray)
   else {
     double *lDst = (double *)PyArray_DATA(t);
     npy_intp numberOfElements = PyArray_SIZE(t);
-    for (mwIndex i = 0; i != numberOfElements; i++) {
+    for (unsigned int i = 0; i != numberOfElements; i++) {
       *lDst++ = *lPR++;
     }
   }
@@ -510,6 +508,7 @@ static mxArray *makeMxFromSeq(const PyObject *pSrc)
 
 static mxArray *numeric2mx(PyObject *pSrc)
 {
+  const char *__array__ = "__array__";
   mxArray *lDst = NULL;
 
   pyassert(PyArray_API, "Unable to perform this function without NumPy installed");
@@ -517,9 +516,8 @@ static mxArray *numeric2mx(PyObject *pSrc)
     lDst = makeMxFromNumeric((const PyArrayObject *)pSrc);
   } else if (PySequence_Check(pSrc)) {
     lDst = makeMxFromSeq(pSrc);
-  } else if (PyObject_HasAttrString(pSrc, "__array__")) {
-    PyObject *arp;
-    arp = PyObject_CallMethod(pSrc, "__array__", NULL);
+  } else if (PyObject_HasAttrString(pSrc, (char *)__array__)) {
+    PyObject *arp = PyObject_CallMethod(pSrc, (char *)__array__, NULL);
     lDst = makeMxFromNumeric((const PyArrayObject *)arp);
     Py_DECREF(arp);             // FIXME check this is correct;
   }
@@ -527,8 +525,6 @@ static mxArray *numeric2mx(PyObject *pSrc)
              PyFloat_Check(pSrc) || PyComplex_Check(pSrc)){
     PyObject *t;
     t = Py_BuildValue("(O)", pSrc);
-//     t = PyTuple_New(1);
-//     PyTuple_SetItem(t, 0, pSrc);
     lDst = makeMxFromSeq(t);
     Py_DECREF(t); // FIXME check this
   } else {
@@ -645,15 +641,13 @@ PyObject * mlabraw_eval(PyObject *, PyObject *args)
   // high overhead of engine calls means that it can be potentially useful to
   // eval large chunks.
   const int  BUFSIZE=4096;
-  char* fmt = "try, %s; MLABRAW_ERROR_=0; catch, MLABRAW_ERROR_=1; end;";
+  const char* fmt = "try, %s; MLABRAW_ERROR_=0; catch, MLABRAW_ERROR_=1; end;";
   char buffer[BUFSIZE];
   char cmd[BUFSIZE];
   char *lStr;
   char *retStr = buffer;
   PyObject *ret;
   PyObject *lHandle;
-  PyObject *u_ret_str;
-  PyObject *encoded_ret_str;
 
   if (! PyArg_ParseTuple(args, "Os:eval", &lHandle, &lStr)) return NULL;
   if (! PyCapsule_CheckExact(lHandle)) {
@@ -667,13 +661,11 @@ PyObject * mlabraw_eval(PyObject *, PyObject *args)
 					  "String too long to evaluate.");
 	  return NULL;
   }
-  // std::cout << "DEBUG: CMD " << cmd << std::endl << std::flush;
   engOutputBuffer((Engine *)PyCapsule_GetPointer(lHandle, NULL), retStr, BUFSIZE-1);
   if (engEvalString((Engine *)PyCapsule_GetPointer(lHandle, NULL), cmd) != 0) {
-    //std::cout << "DEBUG: RETURN " << retStr << std::endl << std::flush;
 #ifdef PY3K
-    u_ret_str = PyUnicode_DecodeFSDefault(retStr);
-    encoded_ret_str = PyUnicode_AsUTF8String(u_ret_str);
+    PyObject *u_ret_str = PyUnicode_DecodeFSDefault(retStr);
+    PyObject *encoded_ret_str = PyUnicode_AsUTF8String(u_ret_str);
     PyErr_SetString(mlabraw_error, PyBytes_AsString(encoded_ret_str));
     Py_DECREF(encoded_ret_str);
     Py_DECREF(u_ret_str);
@@ -687,7 +679,8 @@ PyObject * mlabraw_eval(PyObject *, PyObject *args)
     char buffer2[BUFSIZE];
     char *retStr2 = buffer2;
     bool __mlabraw_error;
-    if (NULL == (lArray = _getMatlabVar(lHandle, "MLABRAW_ERROR_")) ) {
+    const char* MLABRAW_ERROR_ = "MLABRAW_ERROR_";
+    if (NULL == (lArray = _getMatlabVar(lHandle, MLABRAW_ERROR_)) ) {
       PyErr_SetString(mlabraw_error,
                       "Something VERY BAD happened whilst trying to evaluate string "
                       "in MATLAB(TM) workspace.");
@@ -716,7 +709,6 @@ PyObject * mlabraw_eval(PyObject *, PyObject *args)
   }
   if (strncmp(">> ", retStr, 3) == 0) { retStr += 3; } //FIXME
 #ifdef PY3K
-  //ret = PyUnicode_FromString(retStr);
     ret = PyUnicode_DecodeFSDefault(retStr);
 #else
   ret = (PyObject *)PyString_FromString(retStr);
@@ -727,7 +719,7 @@ PyObject * mlabraw_eval(PyObject *, PyObject *args)
 PyObject * mlabraw_oldeval(PyObject *, PyObject *args)
 {
   //XXX how large should this be?
-  const int  BUFSIZE=10000;
+  const int BUFSIZE = 10000;
   char buffer[BUFSIZE];
   char *lStr;
   char *retStr = buffer;
@@ -840,7 +832,6 @@ PyObject * mlabraw_put(PyObject *, PyObject *args)
   char *lName;
   PyObject *lHandle;
   PyObject *lSource;
-  PyObject *encoded_source;
   mxArray *lArray = NULL;
   //FIXME should make these objects const
   if (! PyArg_ParseTuple(args, "OsO:put", &lHandle, &lName, &lSource)) return NULL;
@@ -852,7 +843,7 @@ PyObject * mlabraw_put(PyObject *, PyObject *args)
 
 #ifdef PY3K
   if (PyUnicode_Check(lSource)) {
-      encoded_source = PyUnicode_AsUTF8String(lSource);
+    PyObject *encoded_source = PyUnicode_AsUTF8String(lSource);
     lArray = char2mx(encoded_source);
     Py_DECREF(encoded_source);
 #else
@@ -941,7 +932,6 @@ struct module_state {
     #define GETSTATE(m) ((struct module_state*)PyModule_GetState(m))
 #else
     #define GETSTATE(m) (&_state)
-    static struct module_state _state;
 #endif
 
 #ifdef PY3K
@@ -983,8 +973,10 @@ PyMODINIT_FUNC initmlabraw(void)
 
   /* This macro, defined in arrayobject.h, loads the Numeric API interface */
   import_array();
-  PyModule_AddStringConstant(module, "__version__", MLABRAW_VERSION);
-  mlabraw_error = PyErr_NewException("mlabraw.error", NULL, NULL);
+  const char *__version__ = "__version__";
+  PyModule_AddStringConstant(module, __version__, MLABRAW_VERSION);
+  const char *mlabraw_error_str = "mlabraw.error";
+  mlabraw_error = PyErr_NewException((char *)mlabraw_error_str, NULL, NULL);
   Py_INCREF(mlabraw_error);
   PyModule_AddObject(module, "error", mlabraw_error);
 
