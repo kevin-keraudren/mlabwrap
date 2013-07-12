@@ -8,12 +8,15 @@
 ## o edited: Patrick Snape (patricksnape@gmail.com) 2013-06-25
 
 import os
-from setuptools import setup, Extension
 import sys
 import subprocess
 import argparse
+
+from setuptools import setup, Extension
 import numpy as np
-from mlabwrap.matlab_utils import isWindows, find_matlab_root
+
+from mlabwrap_utils import isWindows, find_matlab_root
+
 
 # GLOBAL VARIABLES
 
@@ -212,7 +215,7 @@ def main(args):
         author="Alexander Schmolck",
         author_email="A.Schmolck@gmx.net",
         url='http://mlabwrap.sourceforge.net',
-        packages=['mlabwrap'],
+        packages=['mlabwrap', 'mlabwrap_utils'],
         ext_package='mlabwrap',
         ext_modules=[
             get_extension(EXTENSION_NAME, DEFINE_MACROS, MATLAB_LIBRARY_DIRS,

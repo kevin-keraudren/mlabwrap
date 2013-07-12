@@ -21,7 +21,6 @@ def check_PATH_for_folder(folder):
     the path to try and get around capitalisation issues.
     """
     PATH_dirs = os.environ['PATH'].split(os.pathsep)
-    folder = folder.lower()
     return [path for path in PATH_dirs if folder in path.lower()]
 
 
@@ -84,4 +83,3 @@ def find_matlab_root():
             return versions[0]
 
     return None
-

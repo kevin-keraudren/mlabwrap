@@ -174,9 +174,11 @@ import sys
 import re
 import weakref
 import atexit
-from matlab_utils import find_matlab_root
 
 import numpy
+
+from mlabwrap_utils import find_matlab_root
+
 ndarray = numpy.ndarray
 
 import mlabraw
