@@ -38,10 +38,12 @@ python setup.py install --matlab-root=PATH_TO_MATLAB_ROOT
 ```
 
 ## Usage
-To import mlabwrap we do the following **(note the explict call to ``init``)**:
+**IMPORTANT: THE GLOBAL ``mlab`` OBJECT DOES NOT EXIST FROM VERSION 1.2 ONWARDS**
+
+To import mlabwrap we do the following **(note the explict call to use of the instance management class ``MatlabInstance``)**:
 ```
-from mlabwrap import mlab
-mlab.init()
+from mlabwrap import MatlabInstance
+mlab = MatlabInstance.get_instance()
 import numpy as np
 ```
 
@@ -52,11 +54,20 @@ mlab.svd(np.array([[1,2], [1,3]]))
 
 If we want to pass in an explicit version of Matlab, we simply specify the root directory:
 ```
-from mlabwrap import mlab
-mlab.init(matlab_root='/usr/local/MATLAB/R2013a')
+from mlabwrap import MatlabInstance
+mlab = MatlabInstance.get_instance(matlab_root='/usr/local/MATLAB/R2013a')
 ```
 
 ## Changelog
+
+### 1.2 (2013-07-12)
+ * Fix ``setup.py`` to work properly when installing without source
+ * Move mlabwrap into it's own package
+ * Add concept of ``MatlabInstance`` management class to allow managing a single Matlab instance.
+   **This breaks previous behaiour of just importing ``mlab``, now we need to explcitly get an instance.**
+
+### 1.1.6 (2013-07-05)
+ * Fix ``setup.py`` so that it does correct comparisons for Matlab version numbers
 
 ### 1.1.5 (2013-06-25)
  * Change the interface to mlabwrap such that you must explicitly call the init function. 
