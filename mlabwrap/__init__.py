@@ -375,9 +375,7 @@ class MlabWrap(object):
        handling can be controlled with a number of instance variables,
        documented below."""
 
-    __all__ = [] #XXX a hack, so that this class can fake a module; don't mutate
-
-    def init(self, matlab_root=find_matlab_root(), use_jvm=False,
+    def __init__(self, matlab_root=find_matlab_root(), use_jvm=False,
              use_display=False):
         """Create a new matlab(tm) wrapper object.
         """
@@ -669,12 +667,13 @@ class MlabWrap(object):
         return mlab_command
 
 
-mlab = MlabWrap()
-MlabError = mlabraw.error
+class MlabInstance(object):
 
-__all__ = ['mlab', 'MlabWrap', 'MlabError']
+    @classmethod
+    def get_instance(self, **kwargs):
+        if not hasattr(self, '_instance'):
+            self._instance = None
+        if not self._instance:
+            self._instance = MlabWrap(**kwargs)
 
-# Uncomment the following line to make the `mlab` object a library so that
-# e.g. ``from mlabwrap.mlab import plot`` will work
-
-## if not sys.modules.get('mlabwrap.mlab'): sys.modules['mlabwrap.mlab'] = mlab
+        return self._instance
