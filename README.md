@@ -24,12 +24,12 @@ this fork as appropriate if anyone comes up with any ideas.
 
 To install using ``pip``:
 ```
-pip install git+https://github.com/patricksnape/mlabwrap.git
+pip install git+https://github.com/kevin-keraudren/mlabwrap.git
 ```
 
 To manually set the Matlab root directory, use the following command:
 ```
-pip install git+https://github.com/patricksnape/mlabwrap.git --install-option="--matlab-root=PATH_TO_MATLAB_ROOT"
+pip install git+https://github.com/kevin-keraudren/mlabwrap.git --install-option="--matlab-root=PATH_TO_MATLAB_ROOT"
 ```
 
 To install using ``setup.py`` (with optional parameter ``--matlab-root``):

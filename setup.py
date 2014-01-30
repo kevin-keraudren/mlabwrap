@@ -111,7 +111,7 @@ def get_extension(EXTENSION_NAME, DEFINE_MACROS, MATLAB_LIBRARY_DIRS,
         'define_macros': DEFINE_MACROS,
         'library_dirs': MATLAB_LIBRARY_DIRS,
         'libraries': MATLAB_LIBRARIES + CPP_LIBRARIES,
-        'include_dirs': MATLAB_INCLUDE_DIRS + [np.get_include()]
+        'include_dirs': MATLAB_INCLUDE_DIRS + [np.get_include(), "mlabwrap"]
     }
 
     if not isWindows():

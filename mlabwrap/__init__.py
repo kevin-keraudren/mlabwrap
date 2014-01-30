@@ -242,7 +242,7 @@ class MlabObjectProxy(object):
 
     def __repr__(self):
         output = []
-        mlab._do('disp(%s)' % self._name, nout=0, handle_out=output.append)
+        self._mlabwrap._do('disp(%s)' % self._name, nout=0, handle_out=output.append)
         rep = "".join(output)
         klass = self._mlabwrap._do("class(%s)" % self._name)
         ##         #XXX what about classes?
@@ -411,7 +411,7 @@ class MlabWrap(object):
         # Use ``mlab._proxies.values()`` for a list of matlab object's that
         # are currently proxied.
         self._proxy_count = 0
-        self._mlabraw_can_convert = ('double', 'char')
+        self._mlabraw_can_convert = ('single', 'double', 'char', 'cell', 'struct')
         # The matlab(tm) types that mlabraw will automatically convert for us.
         self._dont_proxy = {'cell': False}
         # The matlab(tm) types we can handle ourselves with a bit of

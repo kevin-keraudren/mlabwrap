@@ -172,6 +172,10 @@ static inline mxArray* _getMatlabVar(PyObject *lHandle, const char *lName){
 #endif
 }
 
+// FIXME: functions declaration: move to .h
+static PyObject* mx2py( mxArray* lArray );
+static mxArray*  py2mx( PyObject* lSource );
+
 static PyObject *mlabraw_error;
 
 #define pyassert(x,y) if (! (x)) { _pyassert(y); goto error_return; }
@@ -219,7 +223,7 @@ static PyObject *mx2char(const mxArray *pArray)
 }
 
 
-static PyArrayObject *mx2numeric(const mxArray *pArray)
+static PyArrayObject *mx2numericDouble(const mxArray *pArray)
 {
   //current function returns PyArrayObject in c order currently
   mwSize nd;
@@ -262,6 +266,63 @@ static PyArrayObject *mx2numeric(const mxArray *pArray)
   }
   else {
     double *lDst = (double *)PyArray_DATA(t);
+    npy_intp numberOfElements = PyArray_SIZE(t);
+    for (unsigned int i = 0; i != numberOfElements; i++) {
+      *lDst++ = *lPR++;
+    }
+  }
+  
+  lRetval = (PyArrayObject *)PyArray_FromArray(t,NULL,NPY_C_CONTIGUOUS|NPY_ALIGNED|NPY_WRITEABLE);
+  Py_DECREF(t);
+  
+  return lRetval;
+  error_return:
+  return NULL;
+}
+
+static PyArrayObject *mx2numericSingle(const mxArray *pArray)
+{
+  //current function returns PyArrayObject in c order currently
+  mwSize nd;
+  npy_intp  pydims[NPY_MAXDIMS];
+  PyArrayObject *lRetval = NULL,*t=NULL;
+  const float *lPR;
+  const float *lPI;
+  pyassert(PyArray_API,
+           "Unable to perform this function without NumPy installed");
+
+  nd = mxGetNumberOfDimensions(pArray);
+  {
+    const mwSize *dims;
+    dims = mxGetDimensions(pArray);
+    for (mwSize i=0; i != nd; i++){
+        pydims[i] = static_cast<npy_intp>(dims[i]);
+    }
+  }
+ //this function creates a fortran array
+  t = (PyArrayObject *)
+    PyArray_New(&PyArray_Type,static_cast<npy_intp>(nd), pydims,
+                mxIsComplex(pArray) ? PyArray_CFLOAT : PyArray_FLOAT,
+                NULL, // strides
+                NULL, // data
+                0,    //(ignored itemsize),
+                NPY_F_CONTIGUOUS, 
+                NULL); //  obj
+  if (t == NULL) return NULL;
+  
+  lPR  = (float *)mxGetData(pArray);
+  if (mxIsComplex(pArray)) {
+    float *lDst = (float *)PyArray_DATA(t);
+    // AWMS unsigned int almost certainly can overflow on some platforms!
+    npy_intp numberOfElements = PyArray_SIZE(t);
+    lPI = (float *)mxGetImagData(pArray);
+    for (unsigned int i = 0; i != numberOfElements; i++) {
+      *lDst++ = *lPR++;
+      *lDst++ = *lPI++;
+    }
+  }
+  else {
+    float *lDst = (float *)PyArray_DATA(t);
     npy_intp numberOfElements = PyArray_SIZE(t);
     for (unsigned int i = 0; i != numberOfElements; i++) {
       *lDst++ = *lPR++;
@@ -553,6 +614,176 @@ static mxArray *char2mx(const PyObject *pSrc)
   return lDst;
 }
 
+static mxArray *dict2mx( PyObject *obj)
+{
+  // taken from:
+  // https://github.com/pv/pythoncall/blob/master/pythoncall.c
+  mxArray *r;
+  const mwSize dims[1] = { 1 };
+  PyObject *items;
+  int nitems;
+  int k;
+  char *buf;
+  Py_ssize_t len;
+  char **fieldnames;
+  PyObject *repr = NULL;
+    
+  items = PyDict_Items(obj);
+  if (!items) goto error;
+
+  nitems = PyList_Size(items);
+  fieldnames = (char**)mxCalloc(nitems, sizeof(*fieldnames));
+
+  for (k = 0; k < nitems; ++k) {
+    PyObject *o;
+        
+    o = PyList_GetItem(items, k);
+    if (o == NULL) goto error;
+
+    o = PyTuple_GetItem(o, 0);
+    if (o == NULL) goto error;
+
+    if (PyString_Check(o)) {
+      PyString_AsStringAndSize(o, &buf, &len);
+    } else {
+      repr = PyObject_Repr(o);
+      if (repr == NULL)
+        continue; /* ... FIXME */
+      buf = PyString_AsString(repr);
+      len = strlen(buf);
+    }
+
+    fieldnames[k] = (char*)mxCalloc(len + 1, sizeof(char));
+    memcpy(fieldnames[k], buf, len);
+    fieldnames[k][len] = '\0';
+
+    if (repr) {
+      Py_DECREF(repr);
+      repr = NULL;
+    }
+  }
+
+  r = mxCreateStructArray(1, dims, nitems, (const char**)fieldnames);
+  if (!r) goto error;
+
+  for (k = 0; k < nitems; ++k) {
+    PyObject *o;
+    o = PyList_GetItem(items, k);
+    if (o == NULL) goto error;
+
+    o = PyTuple_GetItem(o, 1);
+    if (o == NULL) goto error;
+
+    if (PyString_Check(o))
+      mxSetFieldByNumber(r, 0, k, char2mx(o));
+    else
+      mxSetFieldByNumber(r, 0, k, numeric2mx(o));
+  }
+
+  Py_DECREF(items);
+    
+  return r;
+
+ error:
+  PyErr_Clear();
+  if (items) {
+    Py_DECREF(items);
+  }
+  return r;
+}
+
+static PyObject *mx2dict( mxArray* arr)
+{
+  int nfields;
+  int field_number;
+  PyObject *obj;
+
+  nfields = mxGetNumberOfFields(arr);
+
+  obj = PyDict_New();
+
+  for (field_number = 0; field_number < nfields; ++field_number) {
+    const char *name;
+        
+    name = mxGetFieldNameByNumber(arr, field_number);
+
+    mxArray *a;
+    a = mxGetFieldByNumber(arr, 0, field_number);
+
+    PyDict_SetItemString(obj, name, mx2py(a));
+  }
+    
+  return obj;
+}
+
+static PyObject* cell2list( mxArray* lArray )
+{
+  int d,nd;
+  const mwSize *dims;
+  PyObject* mylist;
+  Py_ssize_t i;
+  
+  nd = mxGetNumberOfDimensions(lArray);
+  dims = mxGetDimensions(lArray);
+  int len = dims[0];
+  for (d = 1; d < nd; d++)
+    len *= dims[d];
+  
+  mylist = PyList_New(len);
+    
+  for (i=0; i<len; i++ ) 
+    PyList_SetItem(mylist,i,mx2py(mxGetCell(lArray, i)));
+
+  return mylist; 
+}
+
+static PyObject* mx2py( mxArray* lArray )
+{
+  PyObject *lDest = NULL;
+  
+  if (mxIsChar(lArray)) {
+    lDest = (PyObject *)mx2char(lArray);
+  } else if (mxIsSingle(lArray) && !mxIsSparse(lArray)) {
+    lDest = (PyObject *)mx2numericSingle(lArray);    
+  } else if (mxIsDouble(lArray) && !mxIsSparse(lArray)) {
+    lDest = (PyObject *)mx2numericDouble(lArray);
+  } else if (mxIsStruct(lArray)) {
+    lDest = (PyObject *)mx2dict(lArray);
+  } else if (mxIsCell(lArray)) {
+    lDest = (PyObject *)cell2list(lArray);
+  }
+  else {
+    char msg[300];
+    strcpy( msg, "Unsupported Matlab type: " );
+    strcat( msg, mxGetClassName(lArray) );
+    PyErr_SetString( PyExc_TypeError, msg );
+  }
+  
+  return lDest;
+}
+
+static mxArray* py2mx( PyObject* lSource )
+{
+  mxArray* lArray;
+  
+#ifdef PY3K
+  if (PyUnicode_Check(lSource)) {
+    PyObject *encoded_source = PyUnicode_AsUTF8String(lSource);
+    lArray = char2mx(encoded_source);
+    Py_DECREF(encoded_source);
+#else
+  if (PyString_Check(lSource)) {
+    lArray = char2mx(lSource);
+#endif
+  } else if (PyDict_Check(lSource)) {
+    lArray = dict2mx(lSource);
+  } else {
+    lArray = numeric2mx(lSource);
+  }
+  
+  return lArray;
+}
+
 //////////////////////////////////////////////////////////////////////////////
 static char open_doc[] =
 #ifdef WIN32
@@ -800,13 +1031,8 @@ PyObject * mlabraw_get(PyObject *, PyObject *args)
     return NULL;
   }
 
-  if (mxIsChar(lArray)) {
-    lDest = (PyObject *)mx2char(lArray);
-  } else if (mxIsDouble(lArray) && !mxIsSparse(lArray)) {
-    lDest = (PyObject *)mx2numeric(lArray);
-  } else {                      // FIXME structs, cells and non-double arrays
-    PyErr_SetString(PyExc_TypeError, "Only strings and non-sparse numeric arrays are supported.");
-  }
+  lDest = (PyObject *)mx2py(lArray);
+  
   mxDestroyArray(lArray);
   return lDest;
 }
@@ -841,18 +1067,8 @@ PyObject * mlabraw_put(PyObject *, PyObject *args)
   }
   Py_INCREF(lSource);
 
-#ifdef PY3K
-  if (PyUnicode_Check(lSource)) {
-    PyObject *encoded_source = PyUnicode_AsUTF8String(lSource);
-    lArray = char2mx(encoded_source);
-    Py_DECREF(encoded_source);
-#else
-  if (PyString_Check(lSource)) {
-    lArray = char2mx(lSource);
-#endif
-  } else {
-    lArray = numeric2mx(lSource);
-  }
+  lArray = (mxArray*)py2mx(lSource);
+  
   Py_DECREF(lSource);
 
   if (lArray == NULL) {
