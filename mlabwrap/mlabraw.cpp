@@ -737,6 +737,29 @@ static PyObject* cell2list( mxArray* lArray )
   return mylist; 
 }
 
+static mxArray *list2cell( PyObject *obj)
+{
+  // taken from:
+  // https://github.com/pv/pythoncall/blob/master/pythoncall.c
+  mxArray *r;
+  mwSize dims[1];
+  int k;
+  dims[0] = PySequence_Size(obj);
+  r = mxCreateCellArray(1, dims);
+  for (k = 0; k < dims[0]; ++k) {
+    PyObject *o;
+    o = PySequence_GetItem(obj, k);
+    if (o == NULL) {
+      PyErr_WarnEx( NULL, "Couldn't get item in sequence", 1);
+      PyErr_Clear();
+    } else {
+      mxSetCell(r, k, py2mx(o));
+      Py_DECREF(o);
+    }
+  }
+  return r;  
+}
+
 static PyObject* mx2py( mxArray* lArray )
 {
   PyObject *lDest = NULL;
@@ -777,6 +800,8 @@ static mxArray* py2mx( PyObject* lSource )
 #endif
   } else if (PyDict_Check(lSource)) {
     lArray = dict2mx(lSource);
+  } else if (PyList_Check(lSource)) {
+    lArray = list2cell(lSource);
   } else {
     lArray = numeric2mx(lSource);
   }
